@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>會員專區｜特洛伊 AI 賦能應用學院</title>
     <style>
-        /* 沿用你的專屬品牌視覺變數 */
+        /* 品牌視覺變數 */
         :root {
             --primary-yellow: #E1B12C;     
             --primary-hover: #C89D26;      
@@ -23,7 +23,6 @@
             --shadow-sm: 0 4px 12px rgba(0,0,0,0.05);
         }
 
-        /* 基礎排版 */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: var(--font-main);
@@ -40,7 +39,6 @@
         
         .container { max-width: 800px; margin: 0 auto; padding: 2rem 1.5rem; }
         
-        /* 元件樣式 */
         .card {
             background: var(--bg-color); border-radius: var(--radius-md); 
             padding: 1.8rem; border: 1px solid var(--glass-border); 
@@ -55,37 +53,32 @@
         .btn:hover { background: var(--primary-hover); transform: translateY(-2px); }
         .btn:disabled { background: var(--text-muted); cursor: not-allowed; transform: none; }
 
-        input[type="email"] {
+        input[type="email"], input[type="text"] {
             width: 100%; padding: 14px; margin-bottom: 1rem; border: 1px solid var(--glass-border);
             border-radius: var(--radius-md); font-size: 17px; outline: none;
         }
-        input[type="email"]:focus { border-color: var(--primary-yellow); }
+        input:focus { border-color: var(--primary-yellow); }
 
-        /* 智慧彈性排版 */
         .grid-flex-2 { display: flex; flex-wrap: wrap; gap: 1.5rem; }
         .grid-flex-2 > * { flex: 1 1 calc(50% - 1.5rem); min-width: 240px; }
         
         .grid-flex-3 { display: flex; flex-wrap: wrap; gap: 1rem; }
         .grid-flex-3 > * { flex: 1 1 calc(33.333% - 1rem); min-width: 200px; }
 
-        /* 儀表板數值強調 */
         .stat-card { text-align: center; border-top: 4px solid var(--accent-green); }
         .stat-card.yellow { border-top-color: var(--primary-yellow); }
         .stat-card.blue { border-top-color: var(--slate-blue); }
         .stat-num { font-size: 2.2rem; font-weight: bold; color: var(--slate-blue); line-height: 1.2; margin-bottom: 0.5rem; }
         .stat-label { font-size: 15px; color: var(--text-muted); }
 
-        /* 標籤徽章 */
         .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: bold; }
         .badge-active { background: #F0FFF4; color: var(--accent-green); border: 1px solid var(--accent-green); }
         .badge-inactive { background: #FFF5F5; color: var(--danger-color); border: 1px solid var(--danger-color); }
         .badge-vip { background: rgba(225, 177, 44, 0.1); color: var(--primary-hover); border: 1px solid var(--primary-yellow); }
 
-        /* 隱藏與顯示邏輯 */
         #dashboard-section { display: none; }
         .loading { text-align: center; color: var(--text-muted); display: none; margin-top: 1rem;}
         
-        /* 列表樣式 */
         ul.custom-list { list-style: none; padding-left: 0; }
         ul.custom-list li { position: relative; padding-left: 1.5rem; margin-bottom: 0.5rem; }
         ul.custom-list li::before { content: '✓'; color: var(--accent-green); font-weight: bold; position: absolute; left: 0; }
@@ -96,10 +89,23 @@
     <div class="container" id="login-section">
         <div class="card" style="text-align: center; max-width: 400px; margin: 4rem auto;">
             <h1 style="font-size: 1.8rem; margin-bottom: 0.5rem;">學院會員專區</h1>
-            <p style="color: var(--text-muted); margin-bottom: 2rem;">請輸入您的會員帳號 (Email) 進入儀表板</p>
-            <input type="email" id="email-input" placeholder="例如：movingayue@gmail.com">
-            <button class="btn" id="login-btn" onclick="fetchMemberData()">登入查詢</button>
-            <div id="loading-msg" class="loading">正在連線至 FFS 智能系統...</div>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;">請驗證您的身分以進入儀表板</p>
+            
+            <div id="step-1">
+                <input type="email" id="email-input" placeholder="請輸入會員 Email 帳號">
+                <button class="btn" id="send-code-btn" onclick="requestOTP()">發送驗證碼</button>
+            </div>
+
+            <div id="step-2" style="display: none; margin-top: 1rem;">
+                <p style="color: var(--accent-green); font-size: 14px; margin-bottom: 1rem;">✔ 驗證碼已寄出，請至信箱收取</p>
+                <input type="text" id="code-input" placeholder="請輸入 6 位數驗證碼" maxlength="6" style="text-align: center; letter-spacing: 0.2em;">
+                <button class="btn" id="login-btn" onclick="verifyLogin()">確認登入</button>
+                <div style="margin-top: 1rem; font-size: 14px;">
+                    <a href="#" onclick="resetLogin()" style="color: var(--text-muted); text-decoration: underline;">重新輸入 Email</a>
+                </div>
+            </div>
+
+            <div id="loading-msg" class="loading"></div>
             <div id="error-msg" style="color: var(--danger-color); margin-top: 1rem; display: none;"></div>
         </div>
     </div>
@@ -181,109 +187,127 @@
 
     <script>
         // ==========================================
-        // ⚠️ 請將下方的 URL 替換為你的 GAS 網頁應用程式網址
+        // ⚠️ 請替換為你的 GAS 網頁應用程式網址
         // ==========================================
-        const API_URL = "https://script.google.com/macros/s/AKfycbxUEdGxpBRfa1CSR-vItt1fxXzyu8Ii-5jR2IPnhKl9nbK1zgp__geqwSRkpJDGgkEGSQ/exec";
+        const API_URL = "在此貼上你的GAS網頁應用程式網址";
 
-        async function fetchMemberData() {
-            const email = document.getElementById('email-input').value.trim();
-            const btn = document.getElementById('login-btn');
-            const loading = document.getElementById('loading-msg');
+        function showError(msg) {
             const errorMsg = document.getElementById('error-msg');
+            errorMsg.innerText = msg;
+            errorMsg.style.display = "block";
+        }
 
-            if (!email) {
-                errorMsg.innerText = "請輸入 Email";
-                errorMsg.style.display = "block";
-                return;
-            }
+        async function requestOTP() {
+            const email = document.getElementById('email-input').value.trim();
+            const btn = document.getElementById('send-code-btn');
+            const loading = document.getElementById('loading-msg');
+            
+            if (!email) { showError("請輸入 Email"); return; }
 
-            // UI 狀態切換
             btn.disabled = true;
+            document.getElementById('error-msg').style.display = "none";
             loading.style.display = "block";
-            errorMsg.style.display = "none";
+            loading.innerText = "正在核對身分並發送驗證碼...";
 
             try {
-                // 呼叫 GAS API
-                const response = await fetch(`${API_URL}?email=${encodeURIComponent(email)}`);
+                const response = await fetch(`${API_URL}?action=sendCode&email=${encodeURIComponent(email)}`);
                 const result = await response.json();
 
                 if (result.status === "success") {
-                    renderDashboard(result.data);
+                    document.getElementById('step-1').style.display = 'none';
+                    document.getElementById('step-2').style.display = 'block';
                 } else {
-                    errorMsg.innerText = result.message;
-                    errorMsg.style.display = "block";
+                    showError(result.message);
                 }
             } catch (error) {
-                errorMsg.innerText = "連線發生錯誤，請稍後再試。";
-                errorMsg.style.display = "block";
+                showError("連線發生錯誤，請稍後再試。");
             } finally {
                 btn.disabled = false;
                 loading.style.display = "none";
             }
         }
 
+        async function verifyLogin() {
+            const email = document.getElementById('email-input').value.trim();
+            const code = document.getElementById('code-input').value.trim();
+            const btn = document.getElementById('login-btn');
+            const loading = document.getElementById('loading-msg');
+
+            if (!code) { showError("請輸入驗證碼"); return; }
+
+            btn.disabled = true;
+            document.getElementById('error-msg').style.display = "none";
+            loading.style.display = "block";
+            loading.innerText = "驗證中，請稍候...";
+
+            try {
+                const response = await fetch(`${API_URL}?action=login&email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`);
+                const result = await response.json();
+
+                if (result.status === "success") {
+                    renderDashboard(result.data);
+                } else {
+                    showError(result.message);
+                }
+            } catch (error) {
+                showError("連線發生錯誤，請稍後再試。");
+            } finally {
+                btn.disabled = false;
+                loading.style.display = "none";
+            }
+        }
+
+        function resetLogin() {
+            document.getElementById('step-1').style.display = 'block';
+            document.getElementById('step-2').style.display = 'none';
+            document.getElementById('code-input').value = '';
+            document.getElementById('error-msg').style.display = 'none';
+        }
+
         function renderDashboard(data) {
-            // 切換畫面
             document.getElementById('login-section').style.display = 'none';
             document.getElementById('dashboard-section').style.display = 'block';
 
-            // 基本資料
-            document.getElementById('u-name').innerText = data['姓名（必填）'];
-            document.getElementById('u-email').innerText = data['email (會員帳號)'];
+            document.getElementById('u-name').innerText = data['姓名（必填）'] || '會員';
+            document.getElementById('u-email').innerText = data['email (會員帳號)'] || '';
             
-            // 處理日期格式
             let expiryDate = data['會員到期日'];
             if(expiryDate) {
                 const d = new Date(expiryDate);
                 document.getElementById('u-expiry').innerText = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
             }
 
-            // 會員狀態與等級邏輯
             const isYearly = data['訂閱選擇（月付/年繳）'] === '年繳';
-            const tierBadge = document.getElementById('u-tier-badge');
-            tierBadge.innerText = isYearly ? '進階會員' : '初階會員';
+            document.getElementById('u-tier-badge').innerText = isYearly ? '👑 進階會員' : '🌱 初階會員';
             
             const statusBadge = document.getElementById('u-status-badge');
-            const statusStr = data['會員狀態（有效/失效）'];
+            const statusStr = data['會員狀態（有效/失效）'] || '失效';
             statusBadge.innerText = statusStr;
-            if (statusStr === '有效') {
-                statusBadge.className = 'badge badge-active';
-            } else {
-                statusBadge.className = 'badge badge-inactive';
-            }
+            statusBadge.className = statusStr === '有效' ? 'badge badge-active' : 'badge badge-inactive';
 
-            // 數據與點數
             document.getElementById('u-points').innerText = data['累積回饋金'] || 0;
             document.getElementById('u-ref-basic').innerText = data['推薦初階數'] || 0;
             document.getElementById('u-ref-advanced').innerText = data['推薦進階數'] || 0;
 
-            // 課程數據處理 (假設字串以逗號或換行分隔)
-            const completedStr = data['已上完課程名稱'] || "";
-            const learningStr = data['未上完課程名稱'] || "";
-            const totalStr = data['入場過的課程名稱'] || "";
-
-            // 輔助函式：計算數量並生成列表 HTML
             const renderCourseList = (str, countId, listId) => {
-                // 如果是 "0" 或空字串，視為沒有課程
                 if (!str || str.toString().trim() === "0") {
                     document.getElementById(countId).innerText = "0";
                     document.getElementById(listId).innerHTML = "尚無課程紀錄";
                     return;
                 }
-                
-                // 假設用換行、逗號或頓號分隔
                 const courses = str.split(/[\n,、]+/).map(c => c.trim()).filter(c => c);
                 document.getElementById(countId).innerText = courses.length;
                 document.getElementById(listId).innerHTML = courses.map(c => `• ${c}`).join('<br>');
             };
 
-            renderCourseList(completedStr, 'c-completed-count', 'c-completed-list');
-            renderCourseList(learningStr, 'c-learning-count', 'c-learning-list');
-            renderCourseList(totalStr, 'c-total-count', 'c-total-list');
+            renderCourseList(data['已上完課程名稱'], 'c-completed-count', 'c-completed-list');
+            renderCourseList(data['未上完課程名稱'], 'c-learning-count', 'c-learning-list');
+            renderCourseList(data['入場過的課程名稱'], 'c-total-count', 'c-total-list');
         }
 
         function logout() {
             document.getElementById('email-input').value = '';
+            resetLogin();
             document.getElementById('login-section').style.display = 'block';
             document.getElementById('dashboard-section').style.display = 'none';
         }
